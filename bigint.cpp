@@ -1,4 +1,7 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <cstdlib>
 
 using namespace std;
 
@@ -8,391 +11,451 @@ class bigint{
 
     private:
     vector<int> num;
-    // void normalize();
     void equalize_length(vector<int> &other_num);
-    
+    void normalize();
 
     public:
     bigint long_mul(bigint other);
     int isNegative {0};
+
     bigint();
     bigint(int n);
     bigint(string n);
     bigint(vector<int> n);
-    bool operator>(bigint &op);
-    bool operator<(bigint &op);
+
+    bool operator>(const bigint &op) const;
+    bool operator<(const bigint &op) const;
+    bool operator>=(const bigint &op) const;
+    bool operator<=(const bigint &op) const;
+    bool operator==(const bigint &op) const;
+    bool operator!=(const bigint &op) const;
     bigint operator+(bigint op);
     bigint operator-(bigint op);
     bigint operator*(bigint op);
+    bigint operator/(bigint op);
+    bigint operator%(bigint op);
+    std::string toString() const;
     void print();
 };
 
-bigint::bigint(){
-}
+bigint::bigint(){}
 
 bigint::bigint(int n){
     div_t divResult;
-    if(n<0){
+    if(n < 0){
         isNegative = 1;
         n = -n;
     }
-    while(n>0){
+    while(n > 0){
         divResult = div(n, base);
         num.push_back(divResult.rem);
         n = divResult.quot;
     }
+    if(num.size() == 0)
+        num.push_back(0);
 }
 
 bigint::bigint(string n){
     for(auto i = n.rbegin(); i != n.rend(); ++i){
-        if(*i>47 && *i<58){
-            num.push_back(*i-'0');
-        }else if (*i==45){
+        if(*i > 47 && *i < 58){
+            num.push_back(*i - '0');
+        }else if(*i == 45){
             isNegative = 1;
         }
     }
+    normalize();
 }
 
 bigint::bigint(vector<int> n){
     num = n;
+    normalize();
+}
+
+void bigint::normalize(){
+    //removing leading zeroes
+    while(num.size() > 1 && num[num.size() - 1] == 0)
+        num.pop_back();
+
+    if(num.size() == 1 && num[0] == 0)
+        isNegative = 0;
 }
 
 void bigint::equalize_length(vector<int> &other_num){
     int size_diff = num.size() - other_num.size();
     vector<int> *temp;
-    
+
     if(size_diff < 0){
         temp = &num;
         size_diff = -size_diff;
-    }else {
+    }else{
         temp = &other_num;
     }
-    
-    vector<int> zero_vector(size_diff,0);
+
+    vector<int> zero_vector(size_diff, 0);
     temp->insert(temp->end(), zero_vector.begin(), zero_vector.end());
 }
 
 bigint bigint::long_mul(bigint other){
-    bigint prod = bigint();
+    bigint prod;
     div_t divResult;
-    prod.num.assign(num.size()+other.num.size()+1, 0);
-    int carry {0}, i, j, temp;
+    prod.num.assign(num.size() + other.num.size() + 1, 0);
+
+    int carry {0}, i {0}, j {0}, temp;
+
     vector<int>* l {num.size() > other.num.size() ? &num : &other.num};
     vector<int>* s {num.size() <= other.num.size() ? &num : &other.num};
-    
-    
-    for(i=0; i<s->size(); i++){
-        for(j=0; j<l->size(); j++){
-            temp =  (s->at(i) * l->at(j)) + carry + prod.num.at(i+j);
-            if(temp>=base){
+
+    for(i = 0; i < s->size(); i++){
+        for(j = 0; j < l->size(); j++){
+            temp = (s->at(i) * l->at(j)) + carry + prod.num.at(i + j);
+            if(temp >= base){
                 divResult = div(temp, base);
                 temp = divResult.rem;
                 carry = divResult.quot;
-            }else {
+            }else{
                 carry = 0;
             }
-            prod.num.at(i+j) = temp;
+            prod.num.at(i + j) = temp;
         }
         if(carry != 0)
-            prod.num.at(i+j) += carry;
+            prod.num.at(i + j) += carry;
         carry = 0;
     }
-    
-    
-    if(carry != 0){
-        prod.num.at(i+j+1) += carry;
-    }
+
+    prod.isNegative = isNegative ^ other.isNegative;
+    prod.normalize();
     return prod;
 }
 
-bool bigint::operator<(bigint &op){
+bool bigint::operator<(const bigint &op) const{
     int i {0};
     bool res;
 
-    if(isNegative != op.isNegative){
+    if(isNegative != op.isNegative)
         return isNegative;
-    }
 
-    if(num.size() < op.num.size()) {
+    if(num.size() < op.num.size()){
         res = true;
-    }else if(num.size() == op.num.size()) {
-        while(i<num.size()){
+    }else if(num.size() == op.num.size()){
+        for(i = num.size() - 1; i >= 0; i--){
             if(num.at(i) < op.num.at(i)){
                 res = true;
                 break;
-            }else if(num.at(i) > op.num.at(i)) {
+            }else if(num.at(i) > op.num.at(i)){
                 res = false;
                 break;
             }
-            i++;
+            if(i == 0){
+                res = false;
+                break;
+            }
         }
-        //case when diff is 0 and bith numbers are equal
-        if(i==num.size()){
-            res = false;
-        }
-    }else {
+    }else{
         res = false;
     }
 
-    if(isNegative == op.isNegative && !isNegative){
+    if(isNegative && op.isNegative)
         res = !res;
-    }
 
-    return res;     
+    return res;
 }
 
-bool bigint::operator>(bigint &op){
+bool bigint::operator>(const bigint &op) const{
     int i {0};
     bool res;
 
-    if(isNegative != op.isNegative){
+    if(isNegative != op.isNegative)
         return !isNegative;
-    }
 
-    if(num.size() < op.num.size()) {
-        res = false;
-    }else if(num.size() == op.num.size()) {
-        while(i<num.size()){
-            if(num.at(i) < op.num.at(i)){
-                res = false;
-                break;
-            }else if(num.at(i) > op.num.at(i)) {
+    if(num.size() > op.num.size()){
+        res = true;
+    }else if(num.size() == op.num.size()){
+        for(i = num.size() - 1; i >= 0; i--){
+            if(num.at(i) > op.num.at(i)){
                 res = true;
                 break;
+            }else if(num.at(i) < op.num.at(i)){
+                res = false;
+                break;
             }
-            i++;
+            if(i == 0){
+                res = false;
+                break;
+            }
         }
-        //case when diff is 0 and bith numbers are equal
-        if(i==num.size()){
-            res = false;
-        }
-    }else {
-        res = true;
+    }else{
+        res = false;
     }
 
-    if(isNegative == op.isNegative && !isNegative){
+    if(isNegative && op.isNegative)
         res = !res;
-    }
 
-    return res; 
+    return res;
 }
 
 bigint bigint::operator+(bigint op){
-    int carry {0}, i, temp;
-    
-    
-    if(isNegative==1){
-        return (op-bigint(num));
+    int carry {0}, i {0}, temp;
+
+    if(isNegative && !op.isNegative){
+        bigint t = *this;
+        t.isNegative = 0;
+        return op - t;
     }
-    
-    bigint sum = bigint();
+
+    if(!isNegative && op.isNegative){
+        bigint t = op;
+        t.isNegative = 0;
+        return *this - t;
+    }
+
+    bigint sum;
     equalize_length(op.num);
-    for(i=0; i<num.size(); i++){
+
+    for(i = 0; i < num.size(); i++){
         temp = num.at(i) + op.num.at(i) + carry;
-        if(temp>=base){
-            temp = temp%base;
+        if(temp >= base){
+            temp = temp % base;
             carry = 1;
-        }else {
+        }else{
             carry = 0;
-        } 
+        }
         sum.num.push_back(temp);
     }
 
-    if(carry == 1){
+    if(carry == 1)
         sum.num.push_back(1);
-    }
+
+    sum.isNegative = isNegative;
+    sum.normalize();
     return sum;
 }
 
 bigint bigint::operator-(bigint other){
-        int leng1 = num.size();
-    int leng2 = other.num.size();
-    int carry {0}, i {0}, temp;
-    // cout<<"here";
+    int i {0}, carry {0}, temp;
     vector<int> *l, *s;
     bigint diff;
+
+    //handling cases where signs are different
+    if(isNegative && !other.isNegative){
+        bigint t = *this;
+        t.isNegative = 0;
+        diff = t + other;
+        diff.isNegative = 1;
+        return diff;
+    }
+
+    if(!isNegative && other.isNegative){
+        bigint t = other;
+        t.isNegative = 0;
+        diff = *this + t;
+        return diff;
+    }
+
     //finding which is larger integer and determining the sign of the diffference
-    if(num.size() < other.num.size()) {
+    if(*this < other){
         l = &other.num;
         s = &num;
         diff.isNegative = 1;
-    }else if(num.size() == other.num.size()) {
-        while(i<num.size()){
-            // cout<<" here1";
-            if(num.at(num.size()-i-1) > other.num.at(num.size()-i-1)){
-                // cout<<" here2";
-                l = &num;
-                s = &other.num;
-                break;
-            }else if(num.at(num.size()-i-1) < other.num.at(num.size()-i-1)) {
-                // cout<<" here3";
-                l = &other.num;
-                s = &num;
-                diff.isNegative = 1;
-                break;
-            }
-                i++;
-            
-        }
-        //case when diff is 0 and bith numbers are equal
-        if(i==num.size()){
-            l = &num;
-            s = &other.num;
-        }
-    }else {
+    }else{
         l = &num;
         s = &other.num;
     }
-    
-    // equalize_length(other.num);
-    // // vector<int>* l {num.size() > other.num.size() ? &num : &other.num};
-    // // vector<int>* s {num.size() <= other.num.size() ? &num : &other.num};
-    int length1 = num.size();
-    int length2 = other.num.size();
-    for(i=0; i<l->size(); i++){
-        if(i<s->size()){
-            // cout<<" here b temp";
-            int t = l->at(i);
-            int k = s->at(i);
+
+    for(i = 0; i < l->size(); i++){
+        if(i < s->size()){
             temp = l->at(i) - s->at(i) + carry;
-            // cout<<" a temp";
-            if(temp<0){
-                temp = temp+base;
+            if(temp < 0){
+                temp += base;
                 carry = -1;
-            }else {
+            }else{
                 carry = 0;
-            } 
+            }
             diff.num.push_back(temp);
-        }else {
-            diff.num.push_back(l->at(i)+carry);
+        }else{
+            diff.num.push_back(l->at(i) + carry);
+            carry = 0;
         }
     }
-    
+
+    diff.normalize();
     return diff;
 }
+
 
 bigint bigint::operator*(bigint op){
     equalize_length(op.num);
     int n = num.size();
-    
+
     bigint prod;
-    
-    
-    
-    if(n<3){
+
+    if(n < 32){
         prod = long_mul(op);
-        if(isNegative ^ op.isNegative){
-        prod.isNegative = 1;
-    }
         return prod;
     }
-    
-    
-    
-    bigint x2(vector<int>(num.begin(),num.begin()+(n/2)));
-    x2.print();
-    cout<<endl;
-    bigint x1(vector<int>(num.begin()+(n/2),num.end()));
-    x1.print();
-    cout<<endl;
-    bigint y2(vector<int>(op.num.begin(),op.num.begin()+(n/2)));
-    y2.print();
-    cout<<endl;
-    bigint y1(vector<int>(op.num.begin()+(n/2),op.num.end()));
-    y1.print();
-    cout<<endl;
-    
-    bigint z0 = x1*y1;
-    cout<<"z0: ";
-    z0.print();
-    bigint z2 = x2*y2;
-    cout<<"z2: ";
-    z2.print();
-    // bigint z11 = x1*y2;
-    // bigint z12 = y1*x2;
-    // bigint z1 = z11+z12;
-    bigint z1_1 = x1-x2;//p
-    cout<<"z1_1: ";
-    z1_1.print();
-    bigint z1_2 = y2-y1;//n
-    cout<<"z1_2: ";
-    z1_2.print();
-    bigint z1_3 = z1_1*z1_2;
-    cout<<"z1_3: ";
-    z1_3.print();
-    bigint z1_4 = z1_3 + z0;
-    cout<<"z1_4: ";
-    z1_4.print();
-    bigint z1 = z1_4+z2;
-    cout<<"z1: ";
-    z1.print();
-    
-    vector<int> zeroo((n/2)*2,0);
-    vector<int> zero1(n/2,0);
-    z0.num.insert(z0.num.begin(),zeroo.begin(),zeroo.end());
-    z1.num.insert(z1.num.begin(),zero1.begin(),zero1.end());
-    
-    prod = z1+z0+z2;
-    if(isNegative ^ op.isNegative){
-        prod.isNegative = 1;
-    }
-    
+
+    int m = n / 2;
+
+    bigint x2(vector<int>(num.begin(), num.begin() + m));
+    // x2.print(); cout << endl;
+
+    bigint x1(vector<int>(num.begin() + m, num.end()));
+    // x1.print(); cout << endl;
+
+    bigint y2(vector<int>(op.num.begin(), op.num.begin() + m));
+    // y2.print(); cout << endl;
+
+    bigint y1(vector<int>(op.num.begin() + m, op.num.end()));
+    // y1.print(); cout << endl;
+
+    bigint z0 = x2 * y2;
+    // cout << "z0: "; z0.print();
+
+    bigint z2 = x1 * y1;
+    // cout << "z2: "; z2.print();
+
+    bigint z1 = (x1 + x2) * (y1 + y2);
+    z1 = z1 - z0;
+    z1 = z1 - z2;
+
+    vector<int> zeroo(m * 2, 0);
+    vector<int> zero1(m, 0);
+
+    z2.num.insert(z2.num.begin(), zeroo.begin(), zeroo.end());
+    z1.num.insert(z1.num.begin(), zero1.begin(), zero1.end());
+
+    prod = z2 + z1 + z0;
+    prod.isNegative = isNegative ^ op.isNegative;
+    prod.normalize();
+
     return prod;
 }
 
-void bigint::print(){
-    
-    if(num.size()==1){
-        if(isNegative)
-            cout<<"-";
-        cout<<num.at(0);
-        return;
+bool bigint::operator==(const bigint &op) const{
+    if(isNegative != op.isNegative)
+        return false;
+    if(num.size() != op.num.size())
+        return false;
+    for(int i = 0; i < num.size(); i++){
+        if(num.at(i) != op.num.at(i))
+            return false;
     }
-    
-    if(num.size()==2){
-        if(isNegative)
-            cout<<"-";
-        cout<<num.at(1);
-        cout<<num.at(0);
-        return;
-    }
-    
-    //to remove trailing zeroes
-    while (!num.empty() && num[num.size() - 1] == 0)
-        num.pop_back();
-    
-    if(num.size() == 0){
-        num.push_back(0);
-    }
-    
-    int j;
-    double i;
-    
-    if(isNegative)
-        cout<<"-";
-
-    cout<<num.at(num.size()-1);
-    for(j=num.size()-2; j>=0; --j){
-        //for human readable need to add preceding zeroes to numbers
-        //eg: the element is 00083 and base 100000 then cout will give
-        //83 but we need 00083. 
-        if(num.at(j)<(base/10)){
-            //we calculate this ampunt of zeroes by comparing the 
-            //number of digits by taking the log and printing the 
-            //required zeroes
-            for(i=0; i<(log10(base)-1-(num.at(j)==0?0:log10(num.at(j)))); i+=1.0)
-                cout<<0;
-        }
-        cout<<num.at(j);
-    }
+    return true;
 }
 
-//41549622603955309777243716069997997007620439937711509062916
-//41549622603955309777243716069997997007620439937711509062916
-int main(){
-    bigint a ("-11111");
-    bigint b ("63516");
-    bigint c = a*b;
-    cout<<endl;
-    c.print();
+bool bigint::operator!=(const bigint &op) const{
+    return !(*this == op);
+}
+
+bool bigint::operator>=(const bigint &op) const{
+    return !(*this < op);
+}
+
+bool bigint::operator<=(const bigint &op) const{
+    return !(*this > op);
+}
+
+bigint bigint::operator/(bigint divisor){
+    bigint zero(0);
+
+    //division by zero case
+    if(divisor == zero){
+        //division by zero - return 0 for now
+        return zero;
+    }
+
+    bigint dividend = *this;
+    dividend.isNegative = 0;
+    divisor.isNegative = 0;
+
+    //if dividend is smaller than divisor
+    if(dividend < divisor){
+        return zero;
+    }
+
+    bigint quotient;
+    bigint remainder;
+
+    quotient.num.clear();
+
+    int i {0};
+
+    //long division algorithm
+    for(i = dividend.num.size() - 1; i >= 0; i--){
+        //shift remainder left by base
+        remainder = remainder * bigint(base);
+
+        //bring down next digit
+        remainder = remainder + bigint(dividend.num.at(i));
+
+        int q {0};
+        bigint temp(0);
+
+        //finding maximum q such that divisor*q <= remainder
+        while(true){
+            bigint next = temp + divisor;
+            if(next > remainder)
+                break;
+            temp = next;
+            q++;
+        }
+
+        quotient.num.insert(quotient.num.begin(), q);
+        remainder = remainder - temp;
+    }
+
+    quotient.normalize();
+    quotient.isNegative = isNegative ^ divisor.isNegative;
+
+    return quotient;
+}
+
+
+bigint bigint::operator%(bigint divisor){
+    bigint zero(0);
+
+    //modulo by zero case
+    if(divisor == zero){
+        //return 0 for now
+        return zero;
+    }
+
+    bigint dividend = *this;
+    dividend.isNegative = 0;
+    divisor.isNegative = 0;
+
+    //if dividend is smaller than divisor
+    if(dividend < divisor){
+        return *this;
+    }
+
+    //a % b = a - (a / b) * b
+    bigint quotient = dividend / divisor;
+    bigint remainder = dividend - (quotient * divisor);
+
+    remainder.isNegative = isNegative;
+    remainder.normalize();
+
+    return remainder;
+}
+
+
+std::string bigint::toString() const{
+    std::string result;
+    vector<int> temp = num;
+    
+    // Remove trailing zeroes
+    while(temp.size() > 1 && temp[temp.size() - 1] == 0)
+        temp.pop_back();
+    
+    if(isNegative && !(temp.size() == 1 && temp[0] == 0))
+        result += "-";
+    
+    for(int j = temp.size() - 1; j >= 0; j--)
+        result += std::to_string(temp.at(j));
+    
+    return result;
+}
+
+void bigint::print(){
+    std::cout << toString();
 }
